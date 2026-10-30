@@ -5,3 +5,11 @@ __pycache__/
 bundle_out/
 tamper_test/
 .pytest_cache/
+
+# one-off scripts
+fix_*.py
+patch_*.py
+update_*.py
+write_*.py
+add_*.py
+ci.log
