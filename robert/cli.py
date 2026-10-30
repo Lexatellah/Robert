@@ -116,10 +116,18 @@ def cmd_report(args):
                 except Exception as e:
                     print(f"[rate] live {sym} failed: {e}; using static", file=sys.stderr)
             table["source"] = "coingecko-live"
-        matches = correlate(
-            {"amount": args.amount, "currency": args.currency,
-             "sent_at": args.when, "iban": bank_sub.subject.normalized},
-            combined, window_hours=args.window_hours, rate_table=table)
+        bank_leg = {"amount": args.amount, "currency": args.currency,
+                    "sent_at": args.when,
+                    "iban": bank_sub.subject.normalized}
+        matches = correlate(bank_leg, combined,
+                            window_hours=args.window_hours, rate_table=table)
+        if not matches:
+            from robert.split import find_split_candidates
+            matches = find_split_candidates(
+                bank_leg, combined, table,
+                window_hours=args.window_hours)
+            if matches:
+                print(f"[split] {len(matches)} split-transfer candidate(s) found")
         audit.append({"step": "correlated", "matches": len(matches),
                       "rate_source": table.get("source"),
                       "window_hours": args.window_hours})
