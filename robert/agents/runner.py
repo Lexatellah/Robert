@@ -2,6 +2,7 @@
 from robert.agents.blockscout import BlockscoutAgent
 from robert.agents.ethplorer import EthplorerAgent
 from robert.agents.blockchair import BlockchairAgent
+from robert.agents.mempool import MempoolAgent
 from robert.agents.tokens import TokenTransferAgent
 from robert.agents.rpc import RpcAgent
 
@@ -20,7 +21,7 @@ class CircuitBreaker:
 
 class AgentRunner:
     def __init__(self):
-        self.tx_agents = [BlockscoutAgent(), EthplorerAgent(), BlockchairAgent()]
+        self.tx_agents = [BlockscoutAgent(), EthplorerAgent(), BlockchairAgent(), MempoolAgent()]
         self.token_agents = [TokenTransferAgent()]
         self.breaker = CircuitBreaker()
 
@@ -55,3 +56,4 @@ class AgentRunner:
         return self._run(self.token_agents, address, chain, "token transfers")
 
 RPC = RpcAgent()
+
