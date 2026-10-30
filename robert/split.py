@@ -36,6 +36,22 @@ def _to_eur(leg, table):
     return human, R.to_eur(human, sym, table)
 
 
+def _sort_by_proximity(legs, bank_eur, max_legs):
+    """Order legs so combinations evaluate most-plausible sets first.
+    For each candidate set size n in [2..max_legs], target per-leg value
+    is bank_eur/n; sort ascending by distance from that target."""
+    order = []
+    for n in range(2, min(max_legs, len(legs)) + 1):
+        target = bank_eur / n
+        ranked = sorted(legs, key=lambda c: abs(c["eur_value"] - target))
+        for leg in ranked:
+            if leg not in order:
+                order.append(leg)
+    for leg in legs:
+        if leg not in order:
+            order.append(leg)
+    return order
+
 def find_split_candidates(bank_leg, crypto_legs, rate_table,
                           window_hours=72, tolerance_pct=1.0,
                           max_legs=5, max_sets=50):
@@ -69,6 +85,7 @@ def find_split_candidates(bank_leg, crypto_legs, rate_table,
     if len(usable) < 2:
         return []
 
+    usable = _sort_by_proximity(usable, bank_amount, max_legs)
     candidates = []
     sets_evaluated = 0
     for size in range(2, min(max_legs, len(usable)) + 1):
