@@ -85,20 +85,34 @@ def find_split_candidates(bank_leg, crypto_legs, rate_table,
     if len(usable) < 2:
         return []
 
+    # v0.9: evaluate candidate sets across ALL sizes in one priority
+    # order, so a true 3-leg split is not buried under 780 possible pairs.
     usable = _sort_by_proximity(usable, bank_amount, max_legs)
+
+    def _plausible_sets():
+        # yield tuples of legs, best-first, across sizes 2..max_legs
+        for size in range(2, min(max_legs, len(usable)) + 1):
+            target = bank_amount / size
+            ranked = sorted(usable, key=lambda c: abs(c["eur_value"] - target))
+            # for each size, yield combinations in ranked order
+            for combo in combinations(ranked, size):
+                yield combo
+
     candidates = []
     sets_evaluated = 0
-    for size in range(2, min(max_legs, len(usable)) + 1):
-        for combo in combinations(usable, size):
-            if sets_evaluated >= max_sets:
-                break
-            sets_evaluated += 1
-            total = sum(c["eur_value"] for c in combo)
-            if lo <= total <= hi:
-                candidates.append(_make_candidate(combo, bank_amount, total,
-                                                  rate_table, bank_leg))
+    seen_combos = set()
+    for combo in _plausible_sets():
         if sets_evaluated >= max_sets:
             break
+        key = tuple(sorted(c["tx_hash"] for c in combo))
+        if key in seen_combos:
+            continue
+        seen_combos.add(key)
+        sets_evaluated += 1
+        total = sum(c["eur_value"] for c in combo)
+        if lo <= total <= hi:
+            candidates.append(_make_candidate(combo, bank_amount, total,
+                                              rate_table, bank_leg))
 
     # Deduplicate by component set; keep the tightest fit if two sets overlap
     uniq = {}
