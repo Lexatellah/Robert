@@ -51,6 +51,18 @@ Exit codes: 0 ok, 2 invalid input, 3 no data.
 
 Re-checks file hashes, the audit hash chain, and the Ed25519 signature.
 
+
+## What v0.10 proves and what it does not
+
+`tests/test_integration.py` runs the full CLI -> bundle -> verify pipeline
+against a real public address (Binance-14) when `ROBERT_INTEGRATION=1` is
+set. That proves the pipeline works on real blockchain data.
+
+It does **not** prove split-transfer detection on real data. The
+`find_split_candidates` logic is validated against synthetic legs only
+(`tests/test_split.py`). No real case has been contributed yet. That gap
+is documented, not hidden.
+
 ## Architecture
 
     robert/   domain, detect, assertions, audit, bank, bundle, correlate,
