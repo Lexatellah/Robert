@@ -1,6 +1,7 @@
 ﻿import argparse, json, sys, time
 from pathlib import Path
 from robert import assertions as A, bank, security
+from robert import rates as R
 from robert.agents.runner import AgentRunner, RPC
 from robert.audit import AuditLog
 from robert.bundle import write_bundle
@@ -103,11 +104,27 @@ def cmd_report(args):
         combined = txs + tokens
         for t in combined:
             t.setdefault("decimals", 18)
+            if "symbol" not in t:
+                t["symbol"] = "ETH" if chain == "ethereum" else (
+                    "BTC" if chain == "bitcoin" else "native")
+        table = R.load_rates(args.rates) if args.rates else R.load_rates()
+        if args.live_rate:
+            import robert.http as H
+            for sym in ("ETH", "BTC", "USDT", "USDC"):
+                try:
+                    table["to_eur"][sym] = R.live_rate(sym, H)
+                except Exception as e:
+                    print(f"[rate] live {sym} failed: {e}; using static", file=sys.stderr)
+            table["source"] = "coingecko-live"
         matches = correlate(
             {"amount": args.amount, "currency": args.currency,
              "sent_at": args.when, "iban": bank_sub.subject.normalized},
-            combined)
-    audit.append({"step": "correlated", "matches": len(matches)})
+            combined, window_hours=args.window_hours, rate_table=table)
+        audit.append({"step": "correlated", "matches": len(matches),
+                      "rate_source": table.get("source"),
+                      "window_hours": args.window_hours})
+    else:
+        audit.append({"step": "correlated", "matches": 0})
 
     ass = []
     if crypto:
@@ -141,7 +158,7 @@ def cmd_report(args):
         audit.append({"step": "victim_signed", "pubkey": pub})
 
     out = Path(args.out)
-    write_bundle(out, ass, meta={"tool": "robert", "version": "0.6.0",
+    write_bundle(out, ass, meta={"tool": "robert", "version": "0.7.0",
                                  "chain": chain,
                                  "generated_at": int(time.time())},
                  audit=audit, priv=priv)
@@ -163,7 +180,7 @@ def cmd_verify(args):
     return EXIT_OK if r.ok else EXIT_INVALID
 
 def build_parser():
-    p = argparse.ArgumentParser(prog="robert", description="Robert — evidence engine")
+    p = argparse.ArgumentParser(prog="robert", description="Robert - evidence engine")
     sub = p.add_subparsers(required=True, dest="cmd")
     d = sub.add_parser("detect", help="classify inputs (bank vs crypto)")
     d.add_argument("inputs", nargs="+"); d.add_argument("--json", action="store_true")
@@ -174,6 +191,9 @@ def build_parser():
     r.add_argument("--address"); r.add_argument("--chain", default="1")
     r.add_argument("--iban"); r.add_argument("--amount", type=float, default=0.0)
     r.add_argument("--currency", default="EUR"); r.add_argument("--when", type=int, default=0)
+    r.add_argument("--window-hours", type=int, default=72)
+    r.add_argument("--rates", default=None)
+    r.add_argument("--live-rate", action="store_true")
     r.add_argument("--out", default="robert_bundle.zip")
     r.set_defaults(func=cmd_report)
     vf = sub.add_parser("verify", help="verify a Robert evidence bundle")

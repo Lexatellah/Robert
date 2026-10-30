@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "generated_at": "2026-10-30T00:00:00Z",
+  "source": "static-approximation",
+  "note": "Approximate EUR value per unit. Replace with --live-rate or a curated table for production.",
+  "to_eur": {
+    "EUR": 1.0,
+    "USD": 0.92,
+    "USDT": 0.92,
+    "USDC": 0.92,
+    "DAI": 0.92,
+    "ETH": 2800.0,
+    "BTC": 62000.0,
+    "MATIC": 0.42,
+    "BNB": 540.0
+  }
+}
