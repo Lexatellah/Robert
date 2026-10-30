@@ -85,3 +85,33 @@ def test_symbol_without_rate_is_skipped():
     # XYZ has no rate; only 1 usable leg => no candidate, no exception
     out = find_split_candidates(_bank(2500.0), legs, table, window_hours=72)
     assert out == []
+
+def test_late_split_is_found_after_sorting():
+    """v0.9: a true split that appears late in naive combination order
+    must still be found because legs are pre-sorted by EUR proximity."""
+    table = rates.load_rates()
+    # 40 decoy legs that are each far from 2500/3 EUR, plus 3 true legs
+    decoys = [_leg(f"0xdec{i}", "USDT", 10.0, 1730000000 + 60 * (i + 1))
+              for i in range(37)]
+    true_legs = [
+        _leg("0xt1", "USDT", 1200.0, 1730000000 + 120),
+        _leg("0xt2", "USDT", 800.0,  1730000000 + 400),
+        _leg("0xt3", "USDT", 717.39, 1730000000 + 900),
+    ]
+    legs = decoys + true_legs
+    out = find_split_candidates(_bank(2500.0), legs, table, window_hours=72)
+    assert len(out) >= 1
+    found = {c["tx_hash"] for c in out[0]["components"]}
+    assert found == {"0xt1", "0xt2", "0xt3"}
+
+
+def test_split_still_bounded_after_sorting():
+    """v0.9: sorting does not remove the bound; a wallet with too many
+    equally plausible legs still returns at most the bounded set."""
+    table = rates.load_rates()
+    legs = [_leg(f"0xeq{i}", "USDT", 900.0, 1730000000 + 60 * i)
+            for i in range(40)]
+    out = find_split_candidates(_bank(2500.0), legs, table, window_hours=72)
+    # no set of <=5 legs of 900 USDT sums to ~2717 USDT within +/-1%,
+    # so the answer must still be empty
+    assert out == []
