@@ -1,4 +1,4 @@
-﻿import random, time, requests
+import random, time, requests
 from urllib.parse import urlparse
 
 ALLOWED_HOSTS = {
@@ -7,7 +7,7 @@ ALLOWED_HOSTS = {
     "scroll.blockscout.com", "zksync.blockscout.com", "linea.blockscout.com",
     "api.ethplorer.io", "api.blockchair.com",
     "eth.drpc.org", "ethereum-rpc.publicnode.com",
-    "gateway.tenderly.co", "eth-pokt.nodies.app", "eth.meowrpc.com",
+    "gateway.tenderly.co", "eth-pokt.nodies.app", "eth.meowrpc.com", "api.coingecko.com",
     "arb1.arbitrum.io", "mainnet.base.org", "polygon-rpc.com", "mainnet.optimism.io",
 }
 MAX_BYTES = 5_000_000
@@ -60,3 +60,4 @@ def post_json(url, payload, retries=3):
             last = e
             time.sleep((2 ** i) + random.random())
     raise HttpError(f"POST failed after {retries}: {last}")
+
