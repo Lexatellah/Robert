@@ -11,11 +11,11 @@ CHAIN_MAP = {"1": "ethereum", "8453": "base", "42161": "arbitrum",
              "10": "optimism", "137": "polygon"}
 EXIT_OK, EXIT_INVALID, EXIT_NO_DATA = 0, 2, 3
 
-def _human(value: str, decimals: int) -> str:
+def _human(value, decimals):
     try:
         return f"{int(value) / 10**decimals:.8f}".rstrip("0").rstrip(".") or "0"
     except Exception:
-        return value
+        return str(value)
 
 def _print_subject(s):
     print(f"CLASS      {s.label()}")
@@ -102,8 +102,7 @@ def cmd_report(args):
     if bank_sub and (txs or tokens):
         combined = txs + tokens
         for t in combined:
-            if "decimals" not in t:
-                t["decimals"] = 18
+            t.setdefault("decimals", 18)
         matches = correlate(
             {"amount": args.amount, "currency": args.currency,
              "sent_at": args.when, "iban": bank_sub.subject.normalized},
@@ -142,13 +141,26 @@ def cmd_report(args):
         audit.append({"step": "victim_signed", "pubkey": pub})
 
     out = Path(args.out)
-    write_bundle(out, ass, meta={"tool": "robert", "version": "0.5.0",
+    write_bundle(out, ass, meta={"tool": "robert", "version": "0.6.0",
                                  "chain": chain,
                                  "generated_at": int(time.time())},
                  audit=audit, priv=priv)
     print(f"[bundle] {out} ({out.stat().st_size} bytes)")
     print(f"[audit]  head={audit.head()[:16]}... verified={audit.verify()}")
     return EXIT_OK
+
+def cmd_verify(args):
+    from robert.verify import verify_bundle
+    r = verify_bundle(Path(args.bundle))
+    if args.json:
+        print(json.dumps({"ok": r.ok, "checks": r.checks, "errors": r.errors}, indent=2))
+    else:
+        for c in r.checks:
+            mark = "PASS" if c["passed"] else "FAIL"
+            print(f"[{mark}] {c['name']:<26} {c['detail']}")
+        print()
+        print("VERIFIED" if r.ok else f"FAILED: {len(r.errors)} error(s)")
+    return EXIT_OK if r.ok else EXIT_INVALID
 
 def build_parser():
     p = argparse.ArgumentParser(prog="robert", description="Robert — evidence engine")
@@ -164,11 +176,14 @@ def build_parser():
     r.add_argument("--currency", default="EUR"); r.add_argument("--when", type=int, default=0)
     r.add_argument("--out", default="robert_bundle.zip")
     r.set_defaults(func=cmd_report)
+    vf = sub.add_parser("verify", help="verify a Robert evidence bundle")
+    vf.add_argument("bundle"); vf.add_argument("--json", action="store_true")
+    vf.set_defaults(func=cmd_verify)
     return p
 
 def main(argv=None):
-    return build_parser().parse_args(argv).func(
-        build_parser().parse_args(argv))
+    args = build_parser().parse_args(argv)
+    return args.func(args)
 
 if __name__ == "__main__":
     sys.exit(main())
